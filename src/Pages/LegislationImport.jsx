@@ -18,7 +18,11 @@ const steps = [
 const LegislationNode = React.memo(({ node, onEdit, onDelete, canEdit, onDragEnd }) => {
   return (
     <Reorder.Item value={node} id={node.id} onDragEnd={onDragEnd}>
-      <div className={`flex items-center space-x-2 mb-2 p-2 border rounded ${canEdit ? 'cursor-move' : ''}`}>
+      <div
+        className={`flex items-center space-x-2 mb-2 p-2 border rounded ${
+          canEdit ? 'cursor-move' : ''
+        } ${node.type === 'Article' && node.linkedTextId ? 'bg-green-100' : ''}`} // <-- Conditional class added
+      >
         {canEdit && <GripVertical className="text-gray-400" />}
         <span>{node.type}: {node.content}</span>
         {canEdit && (
@@ -35,6 +39,7 @@ const LegislationNode = React.memo(({ node, onEdit, onDelete, canEdit, onDragEnd
     </Reorder.Item>
   );
 });
+
 
 const LegislationImport = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -235,22 +240,69 @@ const LegislationImport = () => {
 
   const handleDrop = useCallback((event, targetIndex) => {
     event.preventDefault();
+    
+    // Parse the dropped text data
     const droppedText = JSON.parse(event.dataTransfer.getData('text/plain'));
+  
     setLegislationStructures(prevStructures => {
       const newStructures = [...prevStructures];
       if (selectedLegislationIndex !== null) {
         const currentStructure = [...newStructures[selectedLegislationIndex].structure];
+  
+        // **Check for duplicates based on normalized content (case-insensitive)**
+        const isDuplicate = currentStructure.some(
+          (item) => 
+            item.type === 'Article' && 
+            item.content.trim().toLowerCase() === droppedText.label.trim().toLowerCase()
+        );
+  
+        if (isDuplicate) {
+          // **Optionally log the duplicate or show a non-blocking notification**
+          console.warn(`L'article "${droppedText.label}" est déjà dans la structure.`);
+          return prevStructures; // Do not add the duplicate
+        }
+  
+        // **Add the dropped article to the structure**
         currentStructure.splice(targetIndex + 1, 0, {
           id: Math.random().toString(36).substr(2, 9),
           type: 'Article',
-          content: droppedText.label,
+          content: droppedText.label.trim(),
           linkedTextId: droppedText.value
         });
+  
+        // **Update the structure with the new article**
         newStructures[selectedLegislationIndex].structure = currentStructure;
       }
       return newStructures;
     });
+  
+    // **Remove the dropped article from "Textes liés" only if it was added**
+    setLegislationStructures(prevStructures => {
+      const newStructures = [...prevStructures];
+      if (selectedLegislationIndex !== null) {
+        const currentStructure = newStructures[selectedLegislationIndex].structure;
+        const wasAdded = currentStructure.some(
+          (item) => 
+            item.type === 'Article' && 
+            item.content.trim().toLowerCase() === droppedText.label.trim().toLowerCase() &&
+            item.linkedTextId === droppedText.value
+        );
+  
+        if (wasAdded) {
+          setSelectedLinkedTexts(prevSelected => 
+            prevSelected.filter(text => text.value !== droppedText.value)
+          );
+        }
+      }
+      return newStructures;
+    });
+  
+    // **Ensure the "Suivant" button remains enabled by not setting the error state**
+    // If you had previously set an error for duplicates, remove or adjust that logic accordingly
   }, [selectedLegislationIndex]);
+  
+  
+  
 
   const exportModifiedCSV = useCallback(() => {
     if (selectedLegislationIndex !== null) {
@@ -512,6 +564,7 @@ const LegislationImport = () => {
             <h2 className="text-xl font-semibold text-green-500">Structurer la législation</h2>
             {selectedLegislationIndex !== null && (
               <div className="flex space-x-4">
+                {/* Existing Structure de la législation and Textes liés code */}
                 <div className="w-2/3 border p-4 rounded">
                   <h4 className="font-medium mb-2">Structure de la législation</h4>
                   <Reorder.Group
@@ -539,7 +592,7 @@ const LegislationImport = () => {
                           onEdit={handleEdit}
                           onDelete={handleDelete}
                           canEdit={canEditStructure}
-                          onDragEnd={() => {/* Logique de mise à jour si nécessaire */}}
+                          onDragEnd={() => {/* Optional: Add logic if needed */}}
                         />
                       </div>
                     ))}
@@ -587,6 +640,15 @@ const LegislationImport = () => {
                 Exporter le CSV modifié
               </button>
             </div>
+            
+            {/* **Add the error message display here** */}
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <AlertTriangle className="w-5 h-5 inline mr-2" />
+                {error}
+              </div>
+            )}
+      
             {showWarning && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                 <div className="bg-white p-6 rounded-lg">
@@ -614,40 +676,44 @@ const LegislationImport = () => {
             )}
           </div>
         );
-      case 4:
-        if (!legislationStructures.length || selectedLegislationIndex === null) return null;
-        return (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-green-500">Confirmation</h2>
-            <div className="bg-white p-4 rounded-md shadow">
-              <h3 className="text-lg font-medium mb-2">Récapitulatif de l'importation</h3>
-              <p>Législation sélectionnée : {legislationStructures[selectedLegislationIndex].Titre_legislation}</p>
-              <p>Nombre d'éléments : {legislationStructures[selectedLegislationIndex].structure.length}</p>
+        case 4:
+          if (!legislationStructures.length || selectedLegislationIndex === null) return null;
+          return (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-green-500">Confirmation</h2>
+              <div className="bg-white p-4 rounded-md shadow">
+                <h3 className="text-lg font-medium mb-2">Récapitulatif de l'importation</h3>
+                <p className="text-green-500">Législation sélectionnée : {legislationStructures[selectedLegislationIndex].Titre_legislation}</p>
+                <p>Nombre d'éléments : {legislationStructures[selectedLegislationIndex].structure.length}</p>
+                
+                <h4 className="text-md font-medium mt-4 mb-2">Structure de la législation :</h4>
+                <div className="max-h-60 overflow-y-auto">
+                  {legislationStructures[selectedLegislationIndex].structure.map((item, index) => (
+                    <div key={index} className="ml-4">
+                      <p className={`${item.type === 'Article' && item.linkedTextId ? 'text-green-500' : ''}`}>
+                        {item.type}: {item.content} {item.linkedTextId ? `(ID: ${item.linkedTextId})` : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
               
-              <h4 className="text-md font-medium mt-4 mb-2">Structure de la législation :</h4>
-              <div className="max-h-60 overflow-y-auto">
-                {legislationStructures[selectedLegislationIndex].structure.map((item, index) => (
-                  <div key={index} className="ml-4">
-                    <p>{item.type}: {item.content} {item.linkedTextId ? `(ID: ${item.linkedTextId})` : ''}</p>
-                  </div>
-                ))}
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-gray-600">Veuillez vérifier que toutes les informations ci-dessus sont correctes avant de procéder à l'importation.</p>
+                <button
+                  onClick={handleExportClick}
+                  className="mt-4 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors duration-200"
+                >
+                  <Download className="inline-block mr-2 h-4 w-4" />
+                  Exporter le CSV modifié
+                </button>
               </div>
             </div>
-            
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-600">Veuillez vérifier que toutes les informations ci-dessus sont correctes avant de procéder à l'importation.</p>
-              <button
-                onClick={handleExportClick}
-                className="mt-4 bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition-colors duration-200"
-              >
-                <Download className="inline-block mr-2 h-4 w-4" />
-                Exporter le CSV modifié
-              </button>
-            </div>
-          </div>
-        );
-      default:
-        return null;
+          );
+        
+default:
+  return null;
+
     }
   };
 
@@ -739,12 +805,14 @@ const LegislationImport = () => {
             </button>
           ) : (
             <button
-              onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
-              disabled={error !== null || (currentStep === 1 && selectedLegislationIndex === null)}
-              className="px-4 py-2 bg-green-500 text-white rounded-md disabled:opacity-50"
-            >
-              Suivant <ArrowRight className="ml-2 h-4 w-4 inline" />
-            </button>
+            onClick={() => setCurrentStep(prev => Math.min(steps.length - 1, prev + 1))}
+            disabled={error !== null || (currentStep === 1 && selectedLegislationIndex === null)}
+            className="px-4 py-2 bg-green-500 text-white rounded-md disabled:opacity-50"
+          >
+            Suivant <ArrowRight className="ml-2 h-4 w-4 inline" />
+          </button>
+          
+
           )}
         </div>
       )}

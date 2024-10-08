@@ -140,6 +140,9 @@ const AuthForm = () => {
           if (conState.conRememberMe) {
             Cookies.set('token', res.data.token, { expires: 2 });
             Cookies.set('conUserName', res.data.user_nicename, { expires: 2 });
+            localStorage.setItem('token', res.data.token);
+            localStorage.setItem('conUserName', res.data.user_nicename);
+            localStorage.setItem('conUserEmail', res.data.user_email);
           } else {
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('conUserName', res.data.user_nicename);

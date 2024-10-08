@@ -64,7 +64,7 @@ const ForgotPassword = () => {
                 {message && <p className="text-sm font-light text-green-500 dark:text-green-400">{message}</p>}
                 {error && <p className="text-sm font-light text-red-500 dark:text-red-400">{error}</p>}
                 <p className="text-sm font-light text-gray-500 dark:text-gray-400">
-                  Première visite ? <a href="/inscription" className="font-medium text-primary-600 hover:underline dark:text-primary-500">Inscrivez-vous</a>
+                  Première visite ? <a href="/authform?tab=register" className="font-medium text-primary-600 hover:underline dark:text-primary-500">Inscrivez-vous</a>
                 </p>
               </form>
             </div>

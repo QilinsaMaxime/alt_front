@@ -53,6 +53,7 @@ const router = createBrowserRouter(
                 <Route path="tarifs" element={<Tarifs/>}/>
                 <Route path="conditions-generales" element={<TermsConditions/>}/>
                 <Route path="test" element={<Test2/>}/>
+                <Route path="forgot-password" element={<ForgotPassword/>}/>
 
                 {/* PLATEFORME */}
                 <Route path="fonctionnalites" element={<Fonctionnalites/>}/>
@@ -76,7 +77,6 @@ const router = createBrowserRouter(
             <Route path="authform" element={<AuthLayout/>}>
                 <Route path="authform?tab=register" element={<AuthForm/>}/>
                 <Route path="authform?tab=login" element={<AuthForm/>}/>
-                <Route path="forgot-password" element={<ForgotPassword/>}/>
 
             </Route>
 
