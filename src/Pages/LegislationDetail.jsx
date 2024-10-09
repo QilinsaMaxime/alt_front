@@ -11,6 +11,9 @@ const LegislationDetail = () => {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [categoryName, setCategoryName] = useState('');
+  const [entryDate, setEntryDate] = useState('');
+  const [code, setCode] = useState('');
 
   const endpoints = ['titres', 'chapitres', 'sections', 'articles'];
 
@@ -27,9 +30,27 @@ const LegislationDetail = () => {
         const res = await axios.get(`https://alt.back.qilinsa.com/wp-json/wp/v2/legislations/${id}`);
         setLegislation(res.data);
 
+         // Fetch category name
+         if (res.data.categories_legislations.length > 0) {
+          const categoryId = res.data.categories_legislations[0];
+          const categoryRes = await axios.get(`https://alt.back.qilinsa.com/wp-json/wp/v2/categories_legislations/${categoryId}`);
+          setCategoryName(categoryRes.data.name);
+        }
+
+        // Format and set entry date
+        const entryDateFormatted = res.data.acf.date_entree || '';
+        if (entryDateFormatted) {
+          const formattedDate = `${entryDateFormatted.slice(6, 8)} ${new Date(entryDateFormatted.slice(0, 4), entryDateFormatted.slice(4, 6) - 1).toLocaleString('default', { month: 'long' })} ${entryDateFormatted.slice(0, 4)}`;
+          setEntryDate(formattedDate);
+        }
+        
+        // Fetch the "code" field
+        const code = res.data.acf.code || ''; // Adjust the path based on your actual JSON structure
+        setCode(code); // Store the code
+
         const identifiers = res.data.acf.titre_ou_chapitre_ou_section_ou_articles || [];
-        const decisionIdentifiers = res.data.acf.decision ? res.data.acf.decision.slice(0, 3) : [];
-        const commentIdentifiers = res.data.acf.commentaire ? res.data.acf.commentaire.slice(0, 3) : [];
+        const decisionIdentifiers = res.data.acf.decision ? res.data.acf.decision : [];
+        const commentIdentifiers = res.data.acf.commentaire ? res.data.acf.commentaire : [];
 
         const fetchData = async (id) => {
           for (let endpoint of endpoints) {
@@ -105,70 +126,117 @@ const LegislationDetail = () => {
   return (
     <div className="min-h-screen flex flex-col bg-light-background dark:bg-dark-background text-light-text dark:text-dark-text">
       <div className="flex-1 container mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Sidebar */}
         <aside className="lg:col-span-1 dark:bg-gray-700 p-4 rounded-xl shadow lg:sticky lg:top-0 lg:max-h-screen lg:overflow-y-auto">
-          <h2 className="text-xl font-bold mb-4">Sommaire</h2>
-          <ul className="space-y-2">
-            {details.map((item, index) => (
-              <li key={index}>
-                <a
-                  onClick={() => scrollToSection(`detail-${item.id}`)}
-                  className="cursor-pointer text-blue-500 text-sm text-start dark:text-blue-200 hover:underline"
-                >
-                  {extractLastPart(item.title.rendered)}
-                </a>
-              </li>
-            ))}
-            {decisions.length > 0 && (
-              <li>
-                <a
-                  onClick={() => scrollToSection('decisions')}
-                  className="cursor-pointer text-xl font-bold mb-4"
-                >
-                  Décisions
-                </a>
-                <ul className="space-y-2">
-                  {decisions.map((decision, index) => (
-                    <li key={index}>
-                      <a
-                        onClick={() => scrollToSection(`decision-${decision.id}`)}
-                        className="cursor-pointer text-blue-500 text-sm text-start dark:text-blue-200 hover:underline"
-                      >
-                        {extractLastPart(decision.title.rendered)}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            )}
-            {comments.length > 0 && (
-              <li>
-                <a
-                  onClick={() => scrollToSection('comments')}
-                  className="cursor-pointer text-xl font-bold mb-4"
-                >
-                  Commentaires
-                </a>
-                <ul className="space-y-2">
-                  {comments.map((comment, index) => (
-                    <li key={index}>
-                      <a
-                        onClick={() => scrollToSection(`comment-${comment.id}`)}
-                        className="cursor-pointer text-blue-500 text-sm text-start dark:text-blue-100 hover:underline"
-                      >
-                        {extractLastPart(comment.title.rendered)}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            )}
+          <h2 className="text-xl font-bold mb-6">Auteur de la décision</h2>
+          <ul className="space-y-4">
+            {/* Commentaires Link */}
+            <li>
+              <a
+                onClick={() => scrollToSection('comments')}
+                className="flex justify-between items-center cursor-pointer text-blue-500 text-sm dark:text-blue-200 hover:underline"
+              >
+                <span>Commentaires</span>
+                <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                  +{comments.length}
+                </span>
+              </a>
+            </li>
+            {/* Décisions Link */}
+            <li>
+              <a
+                onClick={() => scrollToSection('decisions')}
+                className="flex justify-between items-center cursor-pointer text-blue-500 text-sm dark:text-blue-200 hover:underline"
+              >
+                <span>Décisions</span>
+                <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                  +{decisions.length}
+                </span>
+              </a>
+            </li>
+            {/* Sommaire */}
+            <li>
+              <h3 className="text-lg font-semibold mb-2">Sommaire</h3>
+              <ul className="space-y-2">
+                {details.map((item, index) => (
+                  <li key={index}>
+                    <a
+                      onClick={() => scrollToSection(`detail-${item.id}`)}
+                      className="cursor-pointer text-blue-500 text-sm dark:text-blue-200 hover:underline"
+                    >
+                      {extractLastPart(item.title.rendered)}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </li>
           </ul>
         </aside>
-        <main className="lg:col-span-3 dark:bg-gray-800 p-6 rounded shadow">
+
+        {/* Main Content */}
+        <main className="lg:col-span-3 dark:bg-gray-800 p-6 rounded shadow overflow-y-auto">
           <div className="text-lg leading-relaxed">
-            <h1 className="text-3xl font-bold mb-6">{decodeHTMLEntities(legislation.title.rendered)}</h1>
-            <div dangerouslySetInnerHTML={{ __html: decodeHTMLEntities(legislation.content.rendered) }} className="mb-6" />
-            <div>
+            {/* Legislation Title */}
+            <h1 className="text-3xl font-bold mb-4">{decodeHTMLEntities(legislation.title.rendered)}</h1>
+
+            {/* Heading Label */}
+            <h2 className="text-2xl font-semibold mb-4">Sure le {categoryName}</h2>
+
+            {/* Dates */}
+            <div className="mb-6">
+            <p>
+                <strong>Entrée en vigueur:</strong> {entryDate}
+              </p>
+              <p>
+                <strong>Dernière modification:</strong> {new Date(legislation.modified).toLocaleDateString()}
+              </p>
+              {/* <p>
+                <strong>Code visés:</strong> {code}
+              </p> */}
+            </div>
+
+           {/* Commentaires */}
+              {comments.length > 0 && (
+                <div id="comments" className="mb-8">
+                  <h2 className="text-2xl font-bold mb-4">
+                    Commentaires +{comments.length}
+                  </h2>
+                  {comments.slice(0, 3).map((comment, index) => (
+                    <div key={index} className="mb-4" id={`comment-${comment.id}`}>
+                      <h3 className="text-xl font-semibold mb-2">{extractLastPart(comment.title.rendered)}</h3>
+                      <a href={comment.acf.url} target="_blank" rel="noopener noreferrer" className="text-blue-500">
+                        {comment.acf.url}
+                      </a>
+                      <div
+                        className="line-clamp-3"
+                        dangerouslySetInnerHTML={{ __html: decodeHTMLEntities(comment.content.rendered) }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+
+
+            {/* Décisions */}
+            {decisions.length > 0 && (
+              <div id="decisions" className="mb-8">
+                <h2 className="text-2xl font-bold mb-4">
+                  Décisions +{decisions.length}
+                </h2>
+                {decisions.slice(0, 3).map((decision, index) => (
+                  <div key={index} className="mb-4" id={`decision-${decision.id}`}>
+                    <h3 className="text-xl font-semibold mb-2">{extractLastPart(decision.title.rendered)}</h3>
+                    <div dangerouslySetInnerHTML={{ __html: decodeHTMLEntities(decision.content.rendered) }} />
+                  </div>
+                ))}
+
+              </div>
+            )}
+
+            {/* Sommaire */}
+            <div id="sommaire" className="mb-8">
+              <h2 className="text-2xl font-bold mb-4">Sommaire</h2>
               {details.map((item, index) => (
                 <div key={index} className="mb-6" id={`detail-${item.id}`}>
                   <h3 className="text-xl font-semibold mb-2">{extractLastPart(item.title.rendered)}</h3>
@@ -176,28 +244,6 @@ const LegislationDetail = () => {
                 </div>
               ))}
             </div>
-            {decisions.length > 0 && (
-              <div id="decisions" className="mt-8">
-                <h2 className="text-2xl font-bold mb-4">Décisions</h2>
-                {decisions.map((decision, index) => (
-                  <div key={index} className="mb-6" id={`decision-${decision.id}`}>
-                    <h3 className="text-xl font-semibold mb-2">{extractLastPart(decision.title.rendered)}</h3>
-                    <div dangerouslySetInnerHTML={{ __html: decodeHTMLEntities(decision.content.rendered) }} />
-                  </div>
-                ))}
-              </div>
-            )}
-            {comments.length > 0 && (
-              <div id="comments" className="mt-8">
-                <h2 className="text-2xl font-bold mb-4">Commentaires</h2>
-                {comments.map((comment, index) => (
-                  <div key={index} className="mb-6" id={`comment-${comment.id}`}>
-                    <h3 className="text-xl font-semibold mb-2">{extractLastPart(comment.title.rendered)}</h3>
-                    <div dangerouslySetInnerHTML={{ __html: decodeHTMLEntities(comment.content.rendered) }} />
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </main>
       </div>
